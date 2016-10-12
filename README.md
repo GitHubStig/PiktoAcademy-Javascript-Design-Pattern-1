@@ -181,15 +181,60 @@ Facades pattern can often be seen in JavaScript libraries like jQuery where, alt
 var addEvent = function( elem, eventName, func ) {
   if( elem.addEventListener ) {
     elem.addEventListener( eventName, func, false );
-  } else if( el.attachEvent ) {
+  } else if( el.attachEvent ) { // Internet Explorer sucks!
     elem.attachEvent( "on" + eventName, func );
-  } else{
+  } else {
     elem[ "on" + eventName ] = func;
   }
 };
 ```
+---
+### Flyweight Pattern
+The Flyweight pattern is a solution for optimizing code that is repetitive, slow and inefficiently shares data. It aims to minimize the use of memory in an application by sharing as much data as possible with related objects (e.g application configuration, state and so on).
 
+In practice, Flyweight data sharing can involve taking several similar objects or data constructs used by a number of objects and placing this data into a single external object. We can pass through this object to those depending on this data, rather than storing identical data across each one.
 
+There are two ways in which the Flyweight pattern can be applied. The first is at the data-layer, where we deal with the concept of sharing data between large quantities of similar objects stored in memory.
+
+The second is at the DOM-layer where the Flyweight can be used as a central event-manager to avoid attaching event handlers to every child element in a parent container we wish to have some similar behavior.
+
+**The Flyweight pattern and the DOM**
+
+Imagine we have a number of similar elements in a document with similar behavior executed when a user-action (e.g click, mouse-over) is performed against them.
+
+Normally what we do when constructing our own accordion component, menu or other list-based widget is bind a click event to each link element in the parent container (e.g `$('ul li a').on(..)`. Instead of binding the click to multiple elements, we can easily attach a Flyweight to the top of our container which can listen for events coming from below. 
+
+Now to establish exactly what child element in the container is clicked, we make use of a target check which provides a reference to the element that was clicked, regardless of its parent.
+
+```html
+<div id="container">
+   <div class="toggle" href="#">More Info (Address)
+       <span class="info">
+           This is more information
+       </span></div>
+   <div class="toggle" href="#">Even More Info (Map)
+       <span class="info">
+          <iframe src="http://www.map-generator.net/extmap.php?name=London&amp;address=london%2C%20england&amp;width=500...gt;"</iframe>
+       </span>
+   </div>
+   <div class="toggle" href="#">...</div>
+   ...
+   <div class="toggle" href="#">...</div>
+</div>
+```
+
+```javascript
+const self = this;
+
+$( "#container" )
+  .on( "click", "div.toggle", function( e ) {
+    self.handleClick( e.target );
+  });
+ 
+handleClick = function( elem ) {
+  elem.find( "span" ).toggle( "slow" );
+}
+```
 
 ---
 ## Behavioral Patterns => (Streams Library)
@@ -197,10 +242,6 @@ Behavioral patterns focus on improving or streamlining the communication between
 
 Some behavioral patterns include: Iterator, Mediator, Observer and Visitor.
 
-### Mediator
-Huh?
-
----
 ### Observer Pattern
 The Observer is a design pattern where an object (known as a subject) maintains a list of objects depending on it (observers), automatically notifying them of any changes to state.
 
@@ -254,11 +295,85 @@ modal.onClose.subscribe( () => {
 });
 
 ```
+---
+### Mediator Pattern
+On the Observer pattern, we were introduced to a way of channeling multiple event sources through a single object. This is also known as Publish/Subscribe or Event Aggregation. It's common for developers to think of Mediators when faced with this problem, so let's explore how they differ.
+
+The dictionary refers to a mediator as *a neutral party that assists in negotiations and conflict resolution.* In our world, a mediator is a behavioral design pattern that allows us to expose a unified interface through which the different parts of a system may communicate.
+
+If it appears a system has too many direct relationships between components, it may be time to have a central point of control that components communicate through instead. The Mediator promotes loose coupling by ensuring that instead of components referring to each other explicitly, their interaction is handled through this central point. This can help us decouple systems and improve the potential for component reusability.
+
+A real-world analogy could be a typical airport traffic control system. A tower (Mediator) handles what planes can take off and land because all communications (notifications being listened out for or broadcast) are done from the planes to the control tower, rather than from plane-to-plane. A centralized controller is key to the success of this system and that's really the role a Mediator plays in software design.
+
+Another analogy would be DOM event bubbling and event delegation. If all subscriptions in a system are made against the document rather than individual nodes, the document effectively serves as a Mediator. Instead of binding to the events of the individual nodes, a higher level object is given the responsibility of notifying subscribers about interaction events.
+
+**Chatroom example:**
+
+In the example code we have four participants that are joining in a chat session by registering with a Chatroom (the Mediator). Each participant is represented by a Participant object. Participants send messages to each other and the Chatroom handles the routing.
+
+```javascript
+class Participant {
+  constructor( name ) {
+    this.name = name;
+    this.chatroom = null; 
+  }
+
+  send( message, to ) {
+    this.chatroom.send( message, this, to );
+  }
+
+  receive( message, from ) {
+    console.log( `${from.name} to ${this.name} : ${message}` );
+  }
+}
+
+class Chatroom {
+  constructor() {
+    this.participants = {};
+  }
+
+  register( participant ) {
+    this.participants[participant.name] = participant;
+    participant.chatroom = this;
+  }
+
+  send( message, from, to ) {
+    if( to ) { // single message
+      to.receive( message, from );    
+    } else {  // broadcast message
+      for( let key in this.participants ) {   
+        if( this.participants[key] !== from ) {
+          this.participants[key].receive( message, from );
+        }
+      }
+    }
+  }
+}
+ 
+function run() {
+  var yoko = new Participant( "Yoko" );
+  var john = new Participant( "John" );
+  var paul = new Participant( "Paul" );
+  var ringo = new Participant( "Ringo" );
+
+  var chatroom = new Chatroom();
+  chatroom.register( yoko );
+  chatroom.register( john );
+  chatroom.register( paul );
+  chatroom.register( ringo );
+
+  yoko.send( "All you need is love." );
+  yoko.send( "I love you John." );
+  john.send( "Hey, no need to broadcast", yoko );
+  paul.send( "Ha, I heard that!" );
+  ringo.send( "Paul, what do you think?", paul) ;
+}
+```
 
 ---
-References:
+# References:
+- https://addyosmani.com/resources/essentialjsdesignpatterns/book/#whatisapattern
 - http://www.samselikoff.com/blog/some-Javascript-constructor-patterns/
 - https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Classes
-- https://addyosmani.com/resources/essentialjsdesignpatterns/book/#whatisapattern
-- 
+- http://www.dofactory.com/javascript/mediator-design-pattern
 
